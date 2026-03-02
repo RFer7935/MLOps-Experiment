@@ -114,10 +114,9 @@ jobs:
           path: Workflow-CI/MLProject/outputs/
 
       - name: Log in to DockerHub
-        uses: docker/login-action@v3
-        with:
-          username: RFer7935
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+        env:
+          DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+        run: echo "$DOCKER_PASSWORD" | docker login -u RFer7935 --password-stdin
 
       - name: Build Docker image
         run: |
