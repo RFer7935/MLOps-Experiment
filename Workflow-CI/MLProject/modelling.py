@@ -4,7 +4,6 @@ import pandas as pd
 import joblib
 import mlflow
 import mlflow.sklearn
-import dagshub
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
@@ -12,12 +11,14 @@ from sklearn.metrics import (
     f1_score, precision_score, recall_score, roc_auc_score
 )
 
-# --- DagsHub + MLflow setup ---
-dagshub.init(
-    repo_owner="RFer7935",
-    repo_name="MLOps-Experiment",
-    mlflow=True
+# --- MLflow setup via environment variables ---
+# MLFLOW_TRACKING_URI, MLFLOW_TRACKING_USERNAME, MLFLOW_TRACKING_PASSWORD
+# diset otomatis oleh GitHub Actions secrets — tidak perlu dagshub.init()
+tracking_uri = os.environ.get(
+    "MLFLOW_TRACKING_URI",
+    "https://dagshub.com/RFer7935/MLOps-Experiment.mlflow"
 )
+mlflow.set_tracking_uri(tracking_uri)
 mlflow.set_experiment("tobacco-risk-classification")
 
 if __name__ == "__main__":

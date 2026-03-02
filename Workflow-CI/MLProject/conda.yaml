@@ -8,6 +8,5 @@ dependencies:
       - pandas
       - scikit-learn
       - mlflow
-      - dagshub
       - prometheus_client
       - streamlit
