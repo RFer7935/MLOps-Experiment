@@ -1,3 +1,0 @@
-DVC=enabled
-MLflow=enabled
-remote=https://dagshub.com/username/project.git

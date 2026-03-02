@@ -1,1 +1,1 @@
-https://hub.docker.com/r/akassakti/mlshop-intention-model
+https://hub.docker.com/repository/docker/rfer7935/mlops-experiment

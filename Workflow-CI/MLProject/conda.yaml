@@ -1,4 +1,4 @@
-name: online-shop-env
+name: tobacco-risk-env
 channels:
   - defaults
 dependencies:
@@ -9,3 +9,5 @@ dependencies:
       - scikit-learn
       - mlflow
       - dagshub
+      - prometheus_client
+      - streamlit
