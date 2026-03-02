@@ -34,6 +34,11 @@ def load_and_preprocess(path):
     if "Sample_Size" in df.columns:
         df["Sample_Size"].fillna(df["Sample_Size"].median(), inplace=True)
 
+    # --- Normalize YEAR column (handle range strings like '2013-2014') ---
+    if "YEAR" in df.columns:
+        df["YEAR"] = df["YEAR"].astype(str).str.extract(r"(\d{4})")[0].astype(float)
+        print(f"[INFO] YEAR column normalized. Sample values: {df['YEAR'].unique()[:5]}")
+
     # --- Create target label: Risk_Level ---
     median_val = df["Data_Value"].median()
     print(f"[INFO] Data_Value median (threshold): {median_val}")
