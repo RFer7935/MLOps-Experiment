@@ -113,6 +113,12 @@ jobs:
           name: trained-model
           path: Workflow-CI/MLProject/outputs/
 
+      - name: Download preprocessed data
+        uses: actions/download-artifact@v4
+        with:
+          name: preprocessed-data
+          path: Workflow-CI/MLProject/tobacco_preprocessed/
+
       - name: Log in to DockerHub
         uses: docker/login-action@v3
         with:
