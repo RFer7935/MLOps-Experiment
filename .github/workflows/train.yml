@@ -132,5 +132,9 @@ jobs:
 
       - name: Push Docker image
         run: |
-          docker push ${{ env.DOCKER_IMAGE }}:latest
-          docker push ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+          for i in 1 2 3; do
+            docker push ${{ env.DOCKER_IMAGE }}:latest && \
+            docker push ${{ env.DOCKER_IMAGE }}:${{ github.sha }} && break
+            echo "Push attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
