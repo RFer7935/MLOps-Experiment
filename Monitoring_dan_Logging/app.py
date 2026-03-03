@@ -3,30 +3,35 @@ import pandas as pd
 import joblib
 import os
 import time
-import threading
 from prometheus_client import (
     Counter, Histogram, Gauge,
     start_http_server, REGISTRY
 )
 
 # ─────────────────────────────────────────────
-# Prometheus Metrics
+# Prometheus Metrics (cached to avoid duplicate registration on hot-reload)
 # ─────────────────────────────────────────────
-PREDICTION_TOTAL      = Counter("prediction_total", "Total number of predictions made")
-HIGH_RISK_TOTAL       = Counter("prediction_high_risk_total", "Total High Risk predictions")
-LOW_RISK_TOTAL        = Counter("prediction_low_risk_total", "Total Low Risk predictions")
-PREDICTION_LATENCY    = Histogram("prediction_latency_seconds", "Prediction latency in seconds")
-MODEL_ACCURACY        = Gauge("model_accuracy", "Loaded model training accuracy")
-APP_REQUESTS          = Counter("app_requests_total", "Total Streamlit app page loads")
+@st.cache_resource
+def create_metrics():
+    prediction_total   = Counter("prediction_total",           "Total number of predictions made")
+    high_risk_total    = Counter("prediction_high_risk_total", "Total High Risk predictions")
+    low_risk_total     = Counter("prediction_low_risk_total",  "Total Low Risk predictions")
+    prediction_latency = Histogram("prediction_latency_seconds", "Prediction latency in seconds")
+    model_accuracy     = Gauge("model_accuracy",               "Loaded model training accuracy")
+    app_requests       = Counter("app_requests_total",         "Total Streamlit app page loads")
+    return prediction_total, high_risk_total, low_risk_total, prediction_latency, model_accuracy, app_requests
 
-# Start Prometheus metrics server on port 8000 (background thread)
+PREDICTION_TOTAL, HIGH_RISK_TOTAL, LOW_RISK_TOTAL, PREDICTION_LATENCY, MODEL_ACCURACY, APP_REQUESTS = create_metrics()
+
+# Start Prometheus metrics server on port 8000 (only works outside Streamlit Cloud)
+@st.cache_resource
 def start_metrics_server():
     try:
         start_http_server(8000)
     except OSError:
-        pass  # Already started
+        pass  # Already started or port unavailable
 
-threading.Thread(target=start_metrics_server, daemon=True).start()
+start_metrics_server()
 
 # ─────────────────────────────────────────────
 # Load Model
@@ -144,7 +149,7 @@ with tab2:
 
         df_raw = pd.read_csv(DATA_PATH)
         st.subheader("Preview Dataset")
-        st.dataframe(df_raw.head(20), use_container_width=True)
+        st.dataframe(df_raw.head(20), width='stretch')
 
         col1, col2 = st.columns(2)
         with col1:
