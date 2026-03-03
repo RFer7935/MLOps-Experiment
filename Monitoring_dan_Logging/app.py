@@ -38,7 +38,7 @@ start_metrics_server()
 # ─────────────────────────────────────────────
 MODEL_PATH = os.path.join(
     os.path.dirname(__file__),
-    "..", "Workflow-CI", "MLProject", "outputs", "rf_model.pkl"
+    "rf_model.pkl"
 )
 
 @st.cache_resource

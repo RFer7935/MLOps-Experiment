@@ -21,6 +21,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY Monitoring_dan_Logging/app.py ./app.py
 COPY Workflow-CI/MLProject/tobacco_preprocessed ./tobacco_preprocessed
 
+# Copy trained model (produced by the training job and downloaded before docker build)
+COPY Workflow-CI/MLProject/outputs/rf_model.pkl ./rf_model.pkl
+
 # Expose Streamlit port and Prometheus metrics port
 EXPOSE 8501
 EXPOSE 8000
