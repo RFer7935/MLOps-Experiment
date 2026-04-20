@@ -11,7 +11,7 @@ on:
 env:
   DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
   DAGSHUB_TOKEN:    ${{ secrets.DAGSHUB_TOKEN }}
-  DOCKER_IMAGE:     ghcr.io/neverphile/mlops-experiment
+  DOCKER_IMAGE:     ghcr.io/rfer7935/mlops-experiment
 
 jobs:
   # ─────────────────────────────────────────────
