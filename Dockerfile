@@ -1,5 +1,5 @@
 # ============================================================
-# Dockerfile — Tobacco Risk Classification
+# Dockerfile — Sales Value Classification
 # Image: Python 3.10 slim + dependencies
 # Runs: Streamlit dashboard on port 8501
 # ============================================================
@@ -19,7 +19,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application source
 COPY Monitoring_dan_Logging/app.py ./app.py
-COPY Workflow-CI/MLProject/tobacco_preprocessed ./tobacco_preprocessed
+COPY Membangun_model/data_penjualan_preprocessed ./Membangun_model/data_penjualan_preprocessed
+COPY Workflow-CI/MLProject/outputs ./Workflow-CI/MLProject/outputs
+COPY data/data_penjualan.csv ./data/data_penjualan.csv
 
 # Expose Streamlit port and Prometheus metrics port
 EXPOSE 8501

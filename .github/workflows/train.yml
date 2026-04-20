@@ -1,4 +1,4 @@
-name: Tobacco Risk Classification — CI/CD Pipeline
+name: Sales Value Classification — CI/CD Pipeline
 
 on:
   push:
@@ -11,14 +11,14 @@ on:
 env:
   DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
   DAGSHUB_TOKEN:    ${{ secrets.DAGSHUB_TOKEN }}
-  DOCKER_IMAGE:     rfer7935/mlops-experiment
+  DOCKER_IMAGE:     ghcr.io/neverphile/mlops-experiment
 
 jobs:
   # ─────────────────────────────────────────────
-  # JOB 1: Test & Preprocess
+  # JOB 1: Lint & Setup
   # ─────────────────────────────────────────────
-  test-and-preprocess:
-    name: Test & Preprocess
+  lint-and-setup:
+    name: Lint & Setup
     runs-on: ubuntu-latest
 
     steps:
@@ -34,19 +34,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest
-
-      - name: Run unit tests
-        run: pytest tests/ -v
-
-      - name: Run preprocessing
-        run: python preprocessing/preprocess.py
-
-      - name: Upload preprocessed artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: preprocessed-data
-          path: preprocessing/tobacco_preprocessed/preprocessed.csv
 
   # ─────────────────────────────────────────────
   # JOB 2: Train & Log to DagsHub
@@ -54,7 +41,7 @@ jobs:
   train-and-log:
     name: Train & Log to DagsHub MLflow
     runs-on: ubuntu-latest
-    needs: test-and-preprocess
+    needs: lint-and-setup
     permissions:
       contents: write
 
@@ -72,12 +59,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Download preprocessed data
-        uses: actions/download-artifact@v4
-        with:
-          name: preprocessed-data
-          path: Workflow-CI/MLProject/tobacco_preprocessed/
-
       - name: Train model & log to DagsHub
         env:
           MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/MLOps-Experiment.mlflow
@@ -86,7 +67,7 @@ jobs:
         run: |
           cd Workflow-CI/MLProject
           python modelling.py \
-            --data_path tobacco_preprocessed/preprocessed.csv \
+            --data_path ../../Membangun_model/data_penjualan_preprocessed/preprocessed.csv \
             --n_estimators 100 \
             --max_depth 10 \
             --min_samples_split 2
@@ -109,9 +90,12 @@ jobs:
   # JOB 3: Build & Push Docker Image
   # ─────────────────────────────────────────────
   build-and-push-docker:
-    name: Build & Push to DockerHub
+    name: Build & Push to GitHub Container Registry
     runs-on: ubuntu-latest
     needs: train-and-log
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Checkout repository
@@ -123,22 +107,17 @@ jobs:
           name: trained-model
           path: Workflow-CI/MLProject/outputs/
 
-      - name: Download preprocessed data
-        uses: actions/download-artifact@v4
-        with:
-          name: preprocessed-data
-          path: Workflow-CI/MLProject/tobacco_preprocessed/
-
       - name: Fix DNS resolution
         run: |
           echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
           echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
 
-      - name: Log in to DockerHub
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Docker image
         run: |

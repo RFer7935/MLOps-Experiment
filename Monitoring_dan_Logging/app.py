@@ -14,14 +14,14 @@ from prometheus_client import (
 @st.cache_resource
 def create_metrics():
     prediction_total   = Counter("prediction_total",           "Total number of predictions made")
-    high_risk_total    = Counter("prediction_high_risk_total", "Total High Risk predictions")
-    low_risk_total     = Counter("prediction_low_risk_total",  "Total Low Risk predictions")
+    high_value_total   = Counter("prediction_high_value_total", "Total High Value predictions")
+    low_value_total    = Counter("prediction_low_value_total",  "Total Low Value predictions")
     prediction_latency = Histogram("prediction_latency_seconds", "Prediction latency in seconds")
     model_accuracy     = Gauge("model_accuracy",               "Loaded model training accuracy")
     app_requests       = Counter("app_requests_total",         "Total Streamlit app page loads")
-    return prediction_total, high_risk_total, low_risk_total, prediction_latency, model_accuracy, app_requests
+    return prediction_total, high_value_total, low_value_total, prediction_latency, model_accuracy, app_requests
 
-PREDICTION_TOTAL, HIGH_RISK_TOTAL, LOW_RISK_TOTAL, PREDICTION_LATENCY, MODEL_ACCURACY, APP_REQUESTS = create_metrics()
+PREDICTION_TOTAL, HIGH_VALUE_TOTAL, LOW_VALUE_TOTAL, PREDICTION_LATENCY, MODEL_ACCURACY, APP_REQUESTS = create_metrics()
 
 # Start Prometheus metrics server on port 8000 (only works outside Streamlit Cloud)
 @st.cache_resource
@@ -53,9 +53,9 @@ model = load_model()
 # App Layout
 # ─────────────────────────────────────────────
 APP_REQUESTS.inc()
-st.set_page_config(page_title="Tobacco Risk Dashboard", layout="wide")
-st.title("🚬 Tobacco Smoking Risk Classification Dashboard")
-st.caption("Prediksi apakah suatu wilayah/demografi termasuk **High Risk** atau **Low Risk** merokok")
+st.set_page_config(page_title="Sales Value Dashboard", layout="wide")
+st.title("📈 Sales Value Classification Dashboard")
+st.caption("Prediksi apakah suatu transaksi bernilai **High Value** atau **Low Value**")
 
 tab1, tab2, tab3 = st.tabs(["🔮 Prediksi", "📊 EDA Dataset", "📈 Model Performance"])
 
@@ -63,54 +63,31 @@ tab1, tab2, tab3 = st.tabs(["🔮 Prediksi", "📊 EDA Dataset", "📈 Model Per
 # TAB 1 — Prediksi
 # ─────────────────────────────────────────────
 with tab1:
-    st.subheader("Input Demografi & Lokasi")
+    st.subheader("Input Data Penjualan")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     with col1:
-        year        = st.selectbox("Year", options=list(range(2010, 2023)), index=10)
-        gender      = st.selectbox("Gender", ["Overall", "Male", "Female"])
-        race        = st.selectbox("Race", ["All Races", "White", "Black", "Hispanic", "Asian"])
+        tanggal      = st.date_input("Tanggal Transaksi", value=pd.to_datetime("2022-08-05"))
+        jenis_produk = st.selectbox("Jenis Produk", ["Foodpak260", "FoodpakMatte245", "CraftLaminasi290", "Other"])
     with col2:
-        age         = st.selectbox("Age Group", ["All Ages", "18-24", "25-44", "45-64", "65+"])
-        education   = st.selectbox("Education", ["All Grades", "Less than High School",
-                                                   "High School Graduate", "Some College",
-                                                   "College Graduate"])
-        response    = st.selectbox("Smoking Status (Response)", ["Current", "Former", "Never",
-                                                                   "Some Days", "Every Day"])
-    with col3:
-        location    = st.text_input("Location Abbreviation", value="CA")
-        sample_size = st.number_input("Sample Size", min_value=100, max_value=100000, value=5000)
-        datasource  = st.selectbox("DataSource", ["BRFSS", "NYTS", "NIS"])
-        measure     = st.selectbox("MeasureDesc", ["Smoking Status", "Smoking Frequency",
-                                                    "Quit Attempt", "E-cigarette Use"])
+        jumlah_order = st.number_input("Jumlah Order", min_value=1, max_value=1000000, value=1000)
+        harga        = st.number_input("Harga", min_value=1, max_value=1000000, value=1800)
 
-    if st.button("🔍 Prediksi Risk Level"):
+    if st.button("🔍 Prediksi Value Level"):
         if model is None:
             st.error("Model belum tersedia. Jalankan pipeline training terlebih dahulu.")
         else:
-            # Simple encoding for demo (same as LabelEncoder ordinal)
-            gender_map   = {"Overall": 0, "Female": 1, "Male": 2}
-            race_map     = {"All Races": 0, "Asian": 1, "Black": 2, "Hispanic": 3, "White": 4}
-            age_map      = {"18-24": 0, "25-44": 1, "45-64": 2, "65+": 3, "All Ages": 4}
-            edu_map      = {"All Grades": 0, "College Graduate": 1, "High School Graduate": 2,
-                            "Less than High School": 3, "Some College": 4}
-            resp_map     = {"Current": 0, "Every Day": 1, "Former": 2, "Never": 3, "Some Days": 4}
-            loc_map      = {}  # simplified: hash-based
-            ds_map       = {"BRFSS": 0, "NIS": 1, "NYTS": 2}
-            meas_map     = {"E-cigarette Use": 0, "Quit Attempt": 1,
-                            "Smoking Frequency": 2, "Smoking Status": 3}
-
+            # Simple encoding for demo (same as LabelEncoder)
+            # You should ideally save and load local LabelEnoder
+            jenis_map = {"CraftLaminasi290": 0, "Foodpak260": 1, "FoodpakMatte245": 2, "Other": 3}
+            
             input_data = pd.DataFrame([{
-                "YEAR":         year,
-                "LocationAbbr": abs(hash(location)) % 60,
-                "MeasureDesc":  meas_map.get(measure, 0),
-                "DataSource":   ds_map.get(datasource, 0),
-                "Response":     resp_map.get(response, 0),
-                "Sample_Size":  sample_size,
-                "Gender":       gender_map.get(gender, 0),
-                "Race":         race_map.get(race, 0),
-                "Age":          age_map.get(age, 0),
-                "Education":    edu_map.get(education, 0),
+                "Jenis Produk": jenis_map.get(jenis_produk, 3),
+                "Jumlah Order": jumlah_order,
+                "Harga":        harga,
+                "Year":         tanggal.year,
+                "Month":        tanggal.month,
+                "Day":          tanggal.day
             }])
 
             start_time = time.time()
@@ -122,19 +99,19 @@ with tab1:
             PREDICTION_TOTAL.inc()
             PREDICTION_LATENCY.observe(latency)
             if prediction == 1:
-                HIGH_RISK_TOTAL.inc()
+                HIGH_VALUE_TOTAL.inc()
             else:
-                LOW_RISK_TOTAL.inc()
+                LOW_VALUE_TOTAL.inc()
 
             # Display result
             if prediction == 1:
-                st.error(f"🔴 **HIGH RISK** — Prevalensi merokok tinggi di wilayah/demografi ini")
+                st.success(f"🟢 **HIGH VALUE** — Prediksi total penjualan tinggi")
             else:
-                st.success(f"🟢 **LOW RISK** — Prevalensi merokok rendah di wilayah/demografi ini")
+                st.warning(f"🔴 **LOW VALUE** — Prediksi total penjualan rendah")
 
             col_a, col_b, col_c = st.columns(3)
-            col_a.metric("Low Risk Probability",  f"{probability[0]:.2%}")
-            col_b.metric("High Risk Probability", f"{probability[1]:.2%}")
+            col_a.metric("Low Value Probability",  f"{probability[0]:.2%}")
+            col_b.metric("High Value Probability", f"{probability[1]:.2%}")
             col_c.metric("Latency",               f"{latency*1000:.1f} ms")
 
 # ─────────────────────────────────────────────
@@ -142,13 +119,13 @@ with tab1:
 # ─────────────────────────────────────────────
 with tab2:
     DATA_PATH = os.path.join(os.path.dirname(__file__),
-                             "..", "data", "rows.csv")
+                             "..", "data", "data_penjualan.csv")
     if os.path.exists(DATA_PATH):
         import matplotlib.pyplot as plt
         import seaborn as sns
 
-        df_raw = pd.read_csv(DATA_PATH)
-        st.subheader("Preview Dataset")
+        df_raw = pd.read_csv(DATA_PATH, sep=";")
+        st.subheader("Preview Dataset Penjualan")
         st.dataframe(df_raw.head(20), width='stretch')
 
         col1, col2 = st.columns(2)
@@ -156,32 +133,25 @@ with tab2:
             st.metric("Total Rows",    df_raw.shape[0])
             st.metric("Total Columns", df_raw.shape[1])
 
-        st.subheader("Distribusi Data_Value (Prevalensi Merokok)")
+        st.subheader("Distribusi Total (Sales Value)")
         fig, ax = plt.subplots(figsize=(8, 4))
-        df_raw["Data_Value"].dropna().hist(bins=40, ax=ax, color="#E8553E", edgecolor="white")
-        ax.axvline(df_raw["Data_Value"].median(), color="navy", linestyle="--",
-                   label=f"Median = {df_raw['Data_Value'].median():.1f}%")
-        ax.set_xlabel("Data_Value (%)")
+        df_raw["Total"].dropna().hist(bins=40, ax=ax, color="#3B82F6", edgecolor="white")
+        ax.axvline(df_raw["Total"].median(), color="navy", linestyle="--",
+                   label=f"Median = {df_raw['Total'].median():.1f}")
+        ax.set_xlabel("Total Penjualan")
         ax.set_ylabel("Frequency")
         ax.legend()
         st.pyplot(fig)
 
-        st.subheader("Rata-rata Prevalensi per Gender")
+        st.subheader("Rata-rata Total per Jenis Produk")
         fig2, ax2 = plt.subplots(figsize=(6, 3))
-        df_raw.groupby("Gender")["Data_Value"].mean().sort_values().plot(
-            kind="barh", ax=ax2, color="#3B82F6")
-        ax2.set_xlabel("Avg Data_Value (%)")
+        df_raw.groupby("Jenis Produk")["Total"].mean().sort_values().plot(
+            kind="barh", ax=ax2, color="#10B981")
+        ax2.set_xlabel("Avg Total Penjualan")
         st.pyplot(fig2)
 
-        st.subheader("Tren Prevalensi per Tahun")
-        fig3, ax3 = plt.subplots(figsize=(8, 4))
-        df_raw.groupby("YEAR")["Data_Value"].mean().plot(ax=ax3, marker="o", color="#10B981")
-        ax3.set_ylabel("Avg Data_Value (%)")
-        ax3.set_xlabel("Year")
-        ax3.grid(True, linestyle="--", alpha=0.5)
-        st.pyplot(fig3)
     else:
-        st.warning("Dataset rows.csv tidak ditemukan di folder data/. Copy file terlebih dahulu.")
+        st.warning("Dataset data_penjualan.csv tidak ditemukan di folder data/. Copy file terlebih dahulu.")
 
 # ─────────────────────────────────────────────
 # TAB 3 — Model Performance
@@ -199,12 +169,12 @@ with tab3:
 
         st.subheader("Feature Importances")
         feature_names = [
-            "YEAR", "LocationAbbr", "MeasureDesc", "DataSource",
-            "Response", "Sample_Size", "Gender", "Race", "Age", "Education"
+            "Jenis Produk", "Jumlah Order", "Harga",
+            "Year", "Month", "Day"
         ]
         importances = pd.Series(model.feature_importances_, index=feature_names)
         fig4, ax4 = plt.subplots(figsize=(7, 4))
-        importances.sort_values().plot(kind="barh", ax=ax4, color="#8B5CF6")
+        importances.sort_values().plot(kind="barh", ax=ax4, color="#10B981")
         ax4.set_xlabel("Importance")
         st.pyplot(fig4)
     else:
@@ -215,8 +185,8 @@ with tab3:
     st.code("""
 # Metrics yang di-expose:
 prediction_total            — total prediksi
-prediction_high_risk_total  — total prediksi High Risk
-prediction_low_risk_total   — total prediksi Low Risk
+prediction_high_value_total — total prediksi High Value
+prediction_low_value_total  — total prediksi Low Value
 prediction_latency_seconds  — histogram latency prediksi
 model_accuracy              — akurasi model aktif
 app_requests_total          — total request ke dashboard

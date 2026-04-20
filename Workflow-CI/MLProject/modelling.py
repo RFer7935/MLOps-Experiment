@@ -19,14 +19,14 @@ tracking_uri = os.environ.get(
     "https://dagshub.com/RFer7935/MLOps-Experiment.mlflow"
 )
 mlflow.set_tracking_uri(tracking_uri)
-mlflow.set_experiment("tobacco-risk-classification")
+mlflow.set_experiment("sales-value-classification")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--data_path",
         type=str,
-        default="tobacco_preprocessed/preprocessed.csv"
+        default="../../preprocessing/data_penjualan_preprocessed/preprocessed.csv"
     )
     parser.add_argument("--n_estimators", type=int, default=100)
     parser.add_argument("--max_depth", type=int, default=None)
@@ -42,8 +42,8 @@ if __name__ == "__main__":
 
         # --- Load data ---
         df = pd.read_csv(args.data_path)
-        X = df.drop(columns=["Risk_Level"])
-        y = df["Risk_Level"]
+        X = df.drop(columns=["High_Value"])
+        y = df["High_Value"]
 
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42, stratify=y
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         recall = recall_score(y_test, y_pred)
         auc = roc_auc_score(y_test, y_proba)
 
-        print(classification_report(y_test, y_pred, target_names=["Low Risk", "High Risk"]))
+        print(classification_report(y_test, y_pred, target_names=["Low Value", "High Value"]))
         print(f"AUC-ROC: {auc:.4f}")
 
         # --- Log metrics ---

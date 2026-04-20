@@ -5,10 +5,10 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import classification_report
 
 # --- Load dataset ---
-df = pd.read_csv("Membangun_model/tobacco_preprocessed/preprocessed.csv")
+df = pd.read_csv("preprocessing/data_penjualan_preprocessed/preprocessed.csv")
 
-X = df.drop(columns=["Risk_Level"])
-y = df["Risk_Level"]
+X = df.drop(columns=["High_Value"])
+y = df["High_Value"]
 
 # --- Train-test split ---
 X_train, X_test, y_train, y_test = train_test_split(
@@ -38,7 +38,7 @@ print("Best F1 (CV):", grid_search.best_score_)
 
 # --- Evaluate best model ---
 y_pred = grid_search.best_estimator_.predict(X_test)
-report = classification_report(y_test, y_pred, target_names=["Low Risk", "High Risk"])
+report = classification_report(y_test, y_pred, target_names=["Low Value", "High Value"])
 print("Classification Report:\n", report)
 
 # --- Save best model ---
