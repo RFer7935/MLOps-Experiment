@@ -5,7 +5,7 @@ import os
 import time
 from prometheus_client import (
     Counter, Histogram, Gauge,
-    start_http_server, REGISTRY
+    push_to_gateway, REGISTRY
 )
 
 # ─────────────────────────────────────────────
@@ -23,15 +23,15 @@ def create_metrics():
 
 PREDICTION_TOTAL, HIGH_VALUE_TOTAL, LOW_VALUE_TOTAL, PREDICTION_LATENCY, MODEL_ACCURACY, APP_REQUESTS = create_metrics()
 
-# Start Prometheus metrics server on port 8000 (only works outside Streamlit Cloud)
-@st.cache_resource
-def start_metrics_server():
-    try:
-        start_http_server(8000)
-    except OSError:
-        pass  # Already started or port unavailable
+# Konfigurasi URL Pushgateway (Ngrok) untuk Mendorong (Push) Metrik ke Lokal
+# PENTING: Ganti URL ini dengan URL Ngrok Anda setiap kali Ngrok direstart! (Tanpa https://)
+NGROK_PUSHGATEWAY_URL = " https://craziness-donut-trickster.ngrok-free.dev" 
 
-start_metrics_server()
+def push_metrics_to_local():
+    try:
+        push_to_gateway(NGROK_PUSHGATEWAY_URL, job="sales-model-streamlit-cloud", registry=REGISTRY)
+    except Exception as e:
+        pass # Abaikan error jika Ngrok mati agar app tidak crash
 
 # ─────────────────────────────────────────────
 # Load Model
@@ -53,6 +53,7 @@ model = load_model()
 # App Layout
 # ─────────────────────────────────────────────
 APP_REQUESTS.inc()
+push_metrics_to_local()
 st.set_page_config(page_title="Sales Value Dashboard", layout="wide")
 st.title("📈 Sales Value Classification Dashboard")
 st.caption("Prediksi apakah suatu transaksi bernilai **High Value** atau **Low Value**")
@@ -102,6 +103,9 @@ with tab1:
                 HIGH_VALUE_TOTAL.inc()
             else:
                 LOW_VALUE_TOTAL.inc()
+
+            # Dorong metrik ke Pushgateway Lokal via Ngrok
+            push_metrics_to_local()
 
             # Display result
             if prediction == 1:
@@ -181,7 +185,7 @@ with tab3:
         st.error("Model belum tersedia. Jalankan training pipeline terlebih dahulu.")
 
     st.subheader("Prometheus Metrics Endpoint")
-    st.info("Metrics tersedia di: `http://localhost:8000/metrics`")
+    st.info(f"Metrik di-*push* secara aktif ke: `{NGROK_PUSHGATEWAY_URL}`")
     st.code("""
 # Metrics yang di-expose:
 prediction_total            — total prediksi

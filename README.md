@@ -10,8 +10,8 @@ Implementasi pipeline ini meliputi 5 pilar utama MLOps:
 1. **Data Preprocessing (Cloud):** Pembersihan dan analisis data eksploratif (EDA) dijalankan menggunakan lingkungan Google Colab agar tidak membebani komputasi lokal.
 2. **Model Tracking & Registry:** Terintegrasi dengan DagsHub dan MLflow. Setiap eksperimen, parameter pelatihan (hyperparameter), dan artefak model (file `.pkl`) direkam secara otomatis.
 3. **Continuous Integration & Continuous Deployment (CI/CD):** Didukung oleh GitHub Actions. Setiap perubahan kode atau data pada branch `main` akan memicu pelatihan ulang otomatis. Model terbaik kemudian dibungkus sebagai Docker Image dan disimpan pada GitHub Container Registry (GHCR).
-4. **Model Serving (Antarmuka Pengguna):** Aplikasi Streamlit digunakan sebagai antarmuka interaktif yang dapat digunakan secara langsung oleh tim.
-5. **Monitoring & Observability:** Metrik prediksi dan performa server diekspos melalui Prometheus (lokal), lalu dikirim (remote-write) menuju Grafana Cloud untuk analisis berkelanjutan secara terpusat oleh tim MLOps.
+4. **Model Serving (Antarmuka Pengguna):** Aplikasi Streamlit di-deploy di Cloud (misal: Streamlit Community Cloud) sebagai antarmuka interaktif yang dapat digunakan secara langsung oleh tim.
+5. **Monitoring & Observability:** Metrik prediksi secara dinamis didorong (*push*) dari Streamlit Cloud menuju lingkungan lokal menggunakan **Ngrok Tunneling** dan ditampung oleh **Prometheus Pushgateway**. Metrik kemudian ditarik (*pull*) dan divisualisasikan murni di lingkungan lokal Windows menggunakan **Prometheus** dan **Grafana** (versi Native *standalone*), tanpa memerlukan Docker maupun batasan platform seperti Grafana Cloud.
 
 ---
 
@@ -26,7 +26,8 @@ Implementasi pipeline ini meliputi 5 pilar utama MLOps:
 ├── Workflow-CI/                # Skrip pelatihan model otomatis dan integrasi MLflow
 ├── .github/workflows/          # File konfigurasi GitHub Actions (train.yml)
 ├── Dockerfile                  # Konfigurasi pembuatan image untuk tahap deployment
-├── prometheus.yml              # Konfigurasi agen pengiriman metrik ke Grafana Cloud
+├── prometheus.example.yml      # Konfigurasi target Prometheus untuk menarik metrik dari Pushgateway
+├── Panduan_Grafana_Prometheus_Lokal.md  # Panduan setup Tunneling Monitoring (Ngrok)
 └── README.md                   # Dokumentasi proyek
 ```
 
@@ -52,20 +53,16 @@ Instruksi berikut ditujukan untuk menjalankan keseluruhan aplikasi beserta subsi
    pip install -r requirements.txt
    ```
 
-3. Jalankan aplikasi Streamlit (sebagai antarmuka utama):
+3. Jalankan aplikasi Streamlit (sebagai antarmuka utama) secara lokal atau akses hasil deploy Streamlit Cloud:
    ```bash
    cd Monitoring_dan_Logging
    streamlit run app.py
    ```
-   Akses dasbor prediksi pada peramban web di tautan: `http://localhost:8501`. 
-   *(Secara otomatis, aplikasi ini akan memancarkan metrik telemetri latar belakang pada port 8000).*
+   Akses dasbor pada peramban web di tautan: `http://localhost:8501`.
 
-4. **[Opsional]** Aktifkan Pemantauan Metrik Lokal ke Grafana Cloud:
-   Jika ingin memantau metrik performa model, buka terminal baru dan jalankan service Prometheus menggunakan konfigurasi yang telah disediakan:
-   ```bash
-   prometheus --config.file=prometheus.yml
-   ```
-   Setelah itu, metrik dari Streamlit akan diekspor langsung menuju Dasbor Grafana Cloud yang telah ditautkan.
+4. **Aktifkan Pemantauan Metrik MLOps (Ngrok + Pushgateway + Prometheus + Grafana):**
+   Mengingat aplikasi Streamlit versi Cloud memiliki *inbound firewall* yang memblokir penarikan (*pull*) metrik dari luar, aplikasi ini telah dirancang untuk MENDORONG (*push*) metrik keluar menuju laptop LOKAL Anda.
+   - Silakan rujuk dan praktikkan instruksi menyeluruh pada file **[`Panduan_Grafana_Prometheus_Lokal.md`](Panduan_Grafana_Prometheus_Lokal.md)** untuk menyiapkan jaringan perantara (*tunneling*) dan infrastruktur pemantauan murni di Windows tanpa menggunakan Docker sama sekali.
 
 ---
 

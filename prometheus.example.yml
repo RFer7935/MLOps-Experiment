@@ -1,15 +1,8 @@
 global:
   scrape_interval: 15s
 
-# Konfigurasi MENDORONG data ke Grafana Cloud
-remote_write:
-  - url: "https://prometheus-prod-52-prod-ap-southeast-2.grafana.net/api/prom/push"
-    basic_auth:
-      username: "3128584"
-      password: "<MASUKKAN_TOKEN_GRAFANA_CLOUD_DISINI>"
-
-# Konfigurasi MENARIK data dari Aplikasi Streamlit Anda
+# Konfigurasi MENARIK data dari Pushgateway (Lokal)
 scrape_configs:
-  - job_name: "sales-model-streamlit"
+  - job_name: "pushgateway-lokal"
     static_configs:
-      - targets: ["localhost:8000"]
+      - targets: ["localhost:9091"]
