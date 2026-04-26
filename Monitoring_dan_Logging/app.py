@@ -7,6 +7,7 @@ from prometheus_client import (
     Counter, Histogram, Gauge,
     push_to_gateway, REGISTRY
 )
+from sklearn.preprocessing import StandardScaler
 
 # ─────────────────────────────────────────────
 # Prometheus Metrics (cached to avoid duplicate registration on hot-reload)
@@ -48,7 +49,30 @@ def load_model():
         return joblib.load(MODEL_PATH)
     return None
 
+@st.cache_resource
+def get_fitted_scaler():
+    """Builds a StandardScaler fitted to historical data so user inputs are scaled like during training"""
+    DATA_PATH_RAW = os.path.join(os.path.dirname(__file__), "..", "data", "data_penjualan.csv")
+    if os.path.exists(DATA_PATH_RAW):
+        df = pd.read_csv(DATA_PATH_RAW, sep=";")
+        df.dropna(inplace=True)
+        if "Tanggal" in df.columns:
+            df["Tanggal"] = pd.to_datetime(df["Tanggal"], format="%d/%m/%Y")
+            df["Year"] = df["Tanggal"].dt.year
+            df["Month"] = df["Tanggal"].dt.month
+            df["Day"] = df["Tanggal"].dt.day
+        
+        num_cols = ["Jumlah Order", "Harga", "Year", "Month", "Day"]
+        scaler = StandardScaler()
+        # Clean dataframe to make sure columns exist
+        df_num = df[[c for c in num_cols if c in df.columns]]
+        if not df_num.empty:
+            scaler.fit(df_num)
+            return scaler
+    return None
+
 model = load_model()
+scaler = get_fitted_scaler()
 
 # Set statis untuk simulasi akurasi model dari data testing sebelumnya
 MODEL_ACCURACY.set(0.986)
@@ -94,6 +118,16 @@ with tab1:
                 "Month":        tanggal.month,
                 "Day":          tanggal.day
             }])
+
+            # IMPORTANT: Scale the input using the same scaler fitted from dataset
+            if scaler is not None:
+                num_cols = ["Jumlah Order", "Harga", "Year", "Month", "Day"]
+                # Cek jika kolom ada
+                cols_to_scale = [c for c in num_cols if c in input_data.columns]
+                input_data[cols_to_scale] = scaler.transform(input_data[cols_to_scale])
+
+            # Susun urutan kolom persis seperti training:
+            input_data = input_data[["Jenis Produk", "Jumlah Order", "Harga", "Year", "Month", "Day"]]
 
             start_time = time.time()
             prediction = model.predict(input_data)[0]
