@@ -67,5 +67,33 @@ Kode Python `app.py` Anda telah dikurasi untuk melakukan *push*. Setiap kali And
 
 ---
 
+## 6. Membuat Dashboard Visual di Grafana
+Jika grafik masih statis atau kosong, ubah pengaturannya mengikuti pola *Prometheus Pushgateway* berikut.
+
+**Panel 1: Total Trafik (Angka Besar)**  
+* **Query:** `app_requests_total`
+* Tipe: **Stat**
+* *Penting:* Scroll panel menu kanan ke opsi `Value options` -> `Calculation` dan pilih **Last \***.
+
+**Panel 2: Distribusi Kelas Penjualan (Pie Chart)**  
+* **Query A:** `prediction_high_value_total` *(Legend: High Value)*
+* **Query B:** `prediction_low_value_total` *(Legend: Low Value)* 
+* Tipe: **Pie chart**
+* *Penting:* Di menu `Value options` -> `Calculation`, wajib pilih **Last \***. (Jika tidak diset ke "Last *" grafiknya tidak akan terbentuk).
+
+**Panel 3: Kecepatan Model / Latency (Waktu)**  
+* Karena sinyal (Push) dilakukan secara manual setiap terklik, gunakan jarak waktu besar `[5m]` di **Query**:  
+  `rate(prediction_latency_seconds_sum[5m]) / rate(prediction_latency_seconds_count[5m])`  
+  *(Jika masih rawan patah/kosong, coba gunakan kumulatif absolusi ini: `prediction_latency_seconds_sum / prediction_latency_seconds_count`)*
+* Tipe: **Time series**
+
+**Panel 4: Akurasi Model Aktif (Meteran Kecepatan)**  
+* **Query:** `model_accuracy`
+* Tipe: **Gauge**
+* *Penting:* Pada menu tipe *Standard Options > Unit* pilih format `Percent (0.0-1.0)` agar angka 0.98 diubah otomatis menjadi 98%.
+* Pastikan `Value options` -> Calculation ke **Last \***.
+
+---
+
 ## MLOps Dashboard Ready!
 Setiap kali tombol *Prediksi* ditekan di website Streamlit Anda yang *online*, sebuah sinyal metrik akan langsung terlempar melewati "terowongan udara" Ngrok ➔ Pushgateway ➔ Ditarik oleh Prometheus ➔ Dimunculkan grafiknya di Grafana Lokal milik Anda!

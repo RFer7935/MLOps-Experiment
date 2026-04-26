@@ -34,7 +34,7 @@ def push_metrics_to_local():
         pass # Abaikan error jika Ngrok mati agar app tidak crash
 
 # ─────────────────────────────────────────────
-# Load Model
+# Load Model & Accuracy
 # ─────────────────────────────────────────────
 MODEL_PATH = os.path.join(
     os.path.dirname(__file__),
@@ -48,6 +48,9 @@ def load_model():
     return None
 
 model = load_model()
+
+# Set statis untuk simulasi akurasi model dari data testing sebelumnya
+MODEL_ACCURACY.set(0.986)
 
 # ─────────────────────────────────────────────
 # App Layout
