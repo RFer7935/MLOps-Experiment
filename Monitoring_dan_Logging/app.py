@@ -17,11 +17,12 @@ def create_metrics():
     high_value_total   = Counter("prediction_high_value_total", "Total High Value predictions")
     low_value_total    = Counter("prediction_low_value_total",  "Total Low Value predictions")
     prediction_latency = Histogram("prediction_latency_seconds", "Prediction latency in seconds")
+    last_latency       = Gauge("prediction_last_latency_seconds", "Last recorded prediction latency")
     model_accuracy     = Gauge("model_accuracy",               "Loaded model training accuracy")
     app_requests       = Counter("app_requests_total",         "Total Streamlit app page loads")
-    return prediction_total, high_value_total, low_value_total, prediction_latency, model_accuracy, app_requests
+    return prediction_total, high_value_total, low_value_total, prediction_latency, last_latency, model_accuracy, app_requests
 
-PREDICTION_TOTAL, HIGH_VALUE_TOTAL, LOW_VALUE_TOTAL, PREDICTION_LATENCY, MODEL_ACCURACY, APP_REQUESTS = create_metrics()
+PREDICTION_TOTAL, HIGH_VALUE_TOTAL, LOW_VALUE_TOTAL, PREDICTION_LATENCY, LAST_LATENCY, MODEL_ACCURACY, APP_REQUESTS = create_metrics()
 
 # Konfigurasi URL Pushgateway (Ngrok) untuk Mendorong (Push) Metrik ke Lokal
 # PENTING: Ganti URL ini dengan URL Ngrok Anda setiap kali Ngrok direstart! (Tanpa https://)
@@ -102,6 +103,7 @@ with tab1:
             # Update Prometheus metrics
             PREDICTION_TOTAL.inc()
             PREDICTION_LATENCY.observe(latency)
+            LAST_LATENCY.set(latency) # Simpan kecepatan terakhir
             if prediction == 1:
                 HIGH_VALUE_TOTAL.inc()
             else:
