@@ -9,22 +9,30 @@ Mengingat Streamlit Cloud memblokir port 8000 sehingga Prometheus tidak bisa men
 ## 1. Setup Pushgateway (Penampung Metrik Lokal)
 1. Unduh **Pushgateway** Windows versi terbaru di: [prometheus.io/download/](https://prometheus.io/download/) (pilih file `pushgateway-<VERSI>.windows-amd64.zip`).
 2. Ekstrak file Zip tersebut ke folder (contoh: `C:\Pushgateway\`).
-3. Buka folder, dan jalankan `pushgateway.exe`. 
-   *Pushgateway Anda sekarang aktif menampung metrik di alamat lokal `localhost:9091`.*
+3. Buka folder hasil ekstrak tersebut. Klik bagian *address bar* (jalur teks alamat putih di bagian atas File Explorer), ketik **`cmd`**, lalu tekan **Enter**.
+4. Pada jendela hitam (Command Prompt) yang muncul, ketik perintah ini lalu tekan Enter:
+   ```cmd
+   pushgateway.exe
+   ```
+   *Biarkan CMD ini tetap terbuka di background (jangan ditutup). Pushgateway Anda sekarang standby menampung metrik di `localhost:9091`.*
 
 ---
 
 ## 2. Setup Ngrok (Penerowong Internet ke Laptop)
-1. Buat akun dan unduh **Ngrok** dari [ngrok.com](https://ngrok.com/).
-2. Ekstrak Ngrok dan ikuti instruksi di dashboard mereka untuk menambahkan Authtoken (Langkah ini cuma dilakukan sekali):
-   `ngrok config add-authtoken <TOKEN_ANDA>`
-3. Hubungkan Pushgateway Anda ke Internet dengan perintah:
-   ```bash
+1. Buat akun gratis di Ngrok: [dashboard.ngrok.com/signup](https://dashboard.ngrok.com/signup) dan selesaikan login Anda.
+2. Di halaman Dashboard kiri, cari menu **Getting Started** -> **Your Authtoken**. Lalu **Copy** token acak milik Anda.
+3. Ekstrak file Zip Ngrok yang sudah diunduh (akan berisi 1 file `ngrok.exe`).
+4. Buka folder ekstrakannya, klik *address bar* Windows Explorer (yang membentang putih di atas), ketik **`cmd`**, lalu **Enter**.
+5. Di CMD yang barusan terbuka, *Paste* perintah penambahan token Anda. *(Langkah no.5 ini hanya perlu dilakukan 1 kali pertama saja seumur hidup komputer Anda)*:
+   ```cmd
+   ngrok config add-authtoken <MASUKKAN_VOUCHER_ANDA_DISINI>
+   ```
+6. Jika profil sukses dikonfigurasi, jalankan fitur penerowongan *port-forwarding* (membuka aplikasi ke internet):
+   ```cmd
    ngrok http 9091
    ```
-4. Ngrok akan menampilkan Forwarding URL (Contoh: `https://abcd-123.ngrok-free.app`). 
-   **Simpan URL ini**, karena URL ini akan kita pasang di Streamlit. 
-   *(Jangan matikan terminal Ngrok ini selagi Streamlit berjalan).*
+7. Ngrok akan menampilkan jendela status dengan baris hijau/biru. Perhatikan baris **Forwarding**. Kopi URL-nya (Contoh: `https://abcd-123.ngrok-free.app`). 
+   *Simpan URL ini untuk dipasang di parameter Streamlit. Dan ingat, biarkan jendela terminal Ngrok ini berjalan selama Streamlit masih diakses!*
 
 ---
 
@@ -53,17 +61,30 @@ Kode Python `app.py` Anda telah dikurasi untuk melakukan *push*. Setiap kali And
        static_configs:
          - targets: ["localhost:9091"]
    ```
-3. Jalankan `prometheus.exe --config.file=prometheus.yml`.
+3. Buka folder ekstrakan **Prometheus** tersebut (yang menyimpan `prometheus.exe` dan `prometheus.yml`).
+4. Klik area baris alamat atau *address bar* Windows Explorer di paling atas, ketik **`cmd`**, lalu **Enter**.
+5. CMD baru akan terbuka di layar Anda. Ketikkan baris perintah berikut sambil teliti huruf kapitalnya:
+   ```cmd
+   prometheus.exe --config.file=prometheus.yml
+   ```
+   *Biarkan CMD ini terus berjalan berkedip-kedip di background Anda.*
 
 ---
 
 ## 5. Setup & Tautkan Grafana (Lokal Windows)
-1. Unduh [Grafana Standalone ZIP](https://grafana.com/grafana/download?platform=windows) lalu ekstrak.
-2. Eksekusi `bin/grafana-server.exe`.
-3. Buka **`http://localhost:3000`** di browser (User & Pass: `admin`).
-4. Klik **Connections > Data Sources > Add data source > Prometheus**.
-5. Kolom URL isi dengan: `http://localhost:9090`
-6. Lalu klik **Save & Test**.
+1. Unduh [Grafana Standalone ZIP](https://grafana.com/grafana/download?platform=windows), lalu *Extract All* file di folder baru.
+2. Buka folder baru dari Grafana yang diekstrak tadi, masuklah ke dalam sub-folder bernama **`bin`**.
+3. Sama seperti program yang lain di layar ini, klik daerah *address bar* Explorer kosong di sebelah nama folder Anda (paling atas putih). Ketikkan `cmd`, lalu Enter.
+4. Jendela Command Prompt baru akan muncul (ingat, Terminal ini harus digarisbawahi jalurnya **berakhir pada ...\bin**). Ketik:
+   ```cmd
+   grafana-server.exe
+   ```
+5. Tunggu tulisan log bermunculan yang mencerminkan Grafana server `started!`.
+6. Bukalah Tab Browser baru (Chrome / Edge / Firefox) dan jalankan URL Default: **`http://localhost:3000`**
+7. Anda akan melihat halaman Login. Gunakan default: `admin` dan pass: `admin` (Anda bisa memperbaruinya nanti).
+8. Klik icon Menu Navigasi **Connections** (atau Configuration) > **Data Sources** > **Add data source** > pilih logo **Prometheus**.
+9. Ada sebuah form besar, di bawah segmen HTTP, pada baris "URL / Server URL" isi secara akurat dengan alamat Prometheus Anda: `http://localhost:9090`
+10. Gulung kursor ke bawah pol, lalu klik tombol biru **Save & Test**. (Pastikan centang hijau "Data source is working" muncul).
 
 ---
 
