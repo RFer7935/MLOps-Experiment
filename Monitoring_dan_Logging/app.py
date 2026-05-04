@@ -6,44 +6,52 @@ import time
 import gc as python_gc  # Modul GC bawaan Python untuk membaca statistik garbage collector
 from prometheus_client import (
     Counter, Histogram, Gauge,
-    push_to_gateway, REGISTRY,
-    start_http_server, GC_COLLECTOR, PLATFORM_COLLECTOR, PROCESS_COLLECTOR
+    push_to_gateway, CollectorRegistry,
+    start_http_server
 )
 from sklearn.preprocessing import StandardScaler
 
 # ─────────────────────────────────────────────
 # Prometheus Metrics (cached to avoid duplicate registration on hot-reload)
+# Menggunakan CollectorRegistry CUSTOM (bukan global REGISTRY) agar aman
+# saat Streamlit Cloud me-restart atau hot-reload: registry baru = tidak ada konflik
 # ─────────────────────────────────────────────
 @st.cache_resource
 def create_metrics():
-    prediction_total      = Counter("prediction_total",              "Total number of predictions made")
-    high_value_total      = Counter("prediction_high_value_total",   "Total High Value predictions")
-    low_value_total       = Counter("prediction_low_value_total",    "Total Low Value predictions")
+    # Registry baru setiap cache miss — tidak pernah bentrok dengan sesi sebelumnya
+    registry = CollectorRegistry()
+
+    prediction_total      = Counter("prediction_total",              "Total number of predictions made",             registry=registry)
+    high_value_total      = Counter("prediction_high_value_total",   "Total High Value predictions",                 registry=registry)
+    low_value_total       = Counter("prediction_low_value_total",    "Total Low Value predictions",                  registry=registry)
     prediction_latency    = Histogram("prediction_latency_seconds",  "Prediction latency in seconds",
-                                      buckets=[.001, .005, .01, .025, .05, .1, .25, .5, 1.0])
-    last_latency          = Gauge("prediction_last_latency_seconds", "Last recorded prediction latency")
-    model_accuracy        = Gauge("model_accuracy",                  "Loaded model training accuracy")
-    app_requests          = Counter("app_requests_total",            "Total Streamlit app page loads")
+                                      buckets=[.001, .005, .01, .025, .05, .1, .25, .5, 1.0],
+                                      registry=registry)
+    last_latency          = Gauge("prediction_last_latency_seconds", "Last recorded prediction latency",            registry=registry)
+    model_accuracy        = Gauge("model_accuracy",                  "Loaded model training accuracy",              registry=registry)
+    app_requests          = Counter("app_requests_total",            "Total Streamlit app page loads",              registry=registry)
     # --- Inference specific metrics ---
-    inference_total       = Counter("inference_requests_total",      "Total inference API calls")
-    inference_errors      = Counter("inference_errors_total",        "Total failed inference calls")
+    inference_total       = Counter("inference_requests_total",      "Total inference API calls",                   registry=registry)
+    inference_errors      = Counter("inference_errors_total",        "Total failed inference calls",                registry=registry)
     inference_latency     = Histogram("inference_latency_seconds",   "End-to-end inference latency",
-                                      buckets=[.001, .005, .01, .025, .05, .1, .25, .5, 1.0])
+                                      buckets=[.001, .005, .01, .025, .05, .1, .25, .5, 1.0],
+                                      registry=registry)
     # --- Model quality metrics ---
-    model_confidence_high = Gauge("model_confidence_high_value",     "Last prediction confidence for High Value class")
-    model_confidence_low  = Gauge("model_confidence_low_value",      "Last prediction confidence for Low Value class")
+    model_confidence_high = Gauge("model_confidence_high_value",     "Last prediction confidence for High Value class", registry=registry)
+    model_confidence_low  = Gauge("model_confidence_low_value",      "Last prediction confidence for Low Value class",  registry=registry)
     # --- GC Metrics (dibaca dari modul gc Python, di-push via Pushgateway) ---
     # Menggunakan Gauge berlabel 'generation' (0, 1, 2) — meniru format asli prometheus_client
     gc_objects_collected   = Gauge("python_gc_objects_collected_total",
                                    "Total objects collected by Python GC per generation",
-                                   ["generation"])
+                                   ["generation"], registry=registry)
     gc_objects_uncollect   = Gauge("python_gc_objects_uncollectable_total",
                                    "Total uncollectable objects found by Python GC per generation",
-                                   ["generation"])
+                                   ["generation"], registry=registry)
     gc_collections         = Gauge("python_gc_collections_total",
                                    "Total number of GC collection runs per generation",
-                                   ["generation"])
+                                   ["generation"], registry=registry)
     return (
+        registry,
         prediction_total, high_value_total, low_value_total,
         prediction_latency, last_latency, model_accuracy, app_requests,
         inference_total, inference_errors, inference_latency,
@@ -52,6 +60,7 @@ def create_metrics():
     )
 
 (
+    METRICS_REGISTRY,
     PREDICTION_TOTAL, HIGH_VALUE_TOTAL, LOW_VALUE_TOTAL,
     PREDICTION_LATENCY, LAST_LATENCY, MODEL_ACCURACY, APP_REQUESTS,
     INFERENCE_TOTAL, INFERENCE_ERRORS, INFERENCE_LATENCY,
@@ -65,7 +74,7 @@ def create_metrics():
 # ─────────────────────────────────────────────
 if not st.session_state.get("prometheus_server_started", False):
     try:
-        start_http_server(8000)
+        start_http_server(8000, registry=METRICS_REGISTRY)
         st.session_state["prometheus_server_started"] = True
     except OSError:
         # Port sudah dipakai — server sudah jalan dari sesi sebelumnya
@@ -90,7 +99,7 @@ def push_metrics_to_local():
     """Update GC metrics dari Python runtime, lalu push semua metrics ke Pushgateway."""
     update_gc_metrics()  # Snapshot GC terbaru sebelum push
     try:
-        push_to_gateway(NGROK_PUSHGATEWAY_URL, job="sales-model-streamlit-cloud", registry=REGISTRY)
+        push_to_gateway(NGROK_PUSHGATEWAY_URL, job="sales-model-streamlit-cloud", registry=METRICS_REGISTRY)
     except Exception:
         pass  # Abaikan error jika Ngrok mati agar app tidak crash
 

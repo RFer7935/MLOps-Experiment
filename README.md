@@ -3,8 +3,6 @@
 ## Deskripsi Proyek
 Repositori ini merupakan implementasi arsitektur Machine Learning Operations (MLOps) end-to-end untuk mendeteksi dan mengklasifikasikan transaksi penjualan menjadi kategori `High_Value` atau `Low_Value`. Pendekatan MLOps yang digunakan pada proyek ini memastikan siklus hidup machine learning berjalan secara otomatis, dapat dilacak (traceable), dan mudah dipantau oleh tim dalam skala produksi.
 
-Proyek ini dirancang secara modular, memisahkan lapisan abstraksi antara tim pengembang (Developer/Tester) dengan tim bisnis (End-User) yang hanya membutuhkan antarmuka visual.
-
 ## Arsitektur Sistem
 Implementasi pipeline ini meliputi 5 pilar utama MLOps:
 1. **Data Preprocessing (Cloud):** Pembersihan dan analisis data eksploratif (EDA) dijalankan menggunakan lingkungan Google Colab agar tidak membebani komputasi lokal.
