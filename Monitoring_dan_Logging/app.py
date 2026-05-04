@@ -3,9 +3,11 @@ import pandas as pd
 import joblib
 import os
 import time
+import gc as python_gc  # Modul GC bawaan Python untuk membaca statistik garbage collector
 from prometheus_client import (
     Counter, Histogram, Gauge,
-    push_to_gateway, REGISTRY
+    push_to_gateway, REGISTRY,
+    start_http_server, GC_COLLECTOR, PLATFORM_COLLECTOR, PROCESS_COLLECTOR
 )
 from sklearn.preprocessing import StandardScaler
 
@@ -14,26 +16,83 @@ from sklearn.preprocessing import StandardScaler
 # ─────────────────────────────────────────────
 @st.cache_resource
 def create_metrics():
-    prediction_total   = Counter("prediction_total",           "Total number of predictions made")
-    high_value_total   = Counter("prediction_high_value_total", "Total High Value predictions")
-    low_value_total    = Counter("prediction_low_value_total",  "Total Low Value predictions")
-    prediction_latency = Histogram("prediction_latency_seconds", "Prediction latency in seconds")
-    last_latency       = Gauge("prediction_last_latency_seconds", "Last recorded prediction latency")
-    model_accuracy     = Gauge("model_accuracy",               "Loaded model training accuracy")
-    app_requests       = Counter("app_requests_total",         "Total Streamlit app page loads")
-    return prediction_total, high_value_total, low_value_total, prediction_latency, last_latency, model_accuracy, app_requests
+    prediction_total      = Counter("prediction_total",              "Total number of predictions made")
+    high_value_total      = Counter("prediction_high_value_total",   "Total High Value predictions")
+    low_value_total       = Counter("prediction_low_value_total",    "Total Low Value predictions")
+    prediction_latency    = Histogram("prediction_latency_seconds",  "Prediction latency in seconds",
+                                      buckets=[.001, .005, .01, .025, .05, .1, .25, .5, 1.0])
+    last_latency          = Gauge("prediction_last_latency_seconds", "Last recorded prediction latency")
+    model_accuracy        = Gauge("model_accuracy",                  "Loaded model training accuracy")
+    app_requests          = Counter("app_requests_total",            "Total Streamlit app page loads")
+    # --- Inference specific metrics ---
+    inference_total       = Counter("inference_requests_total",      "Total inference API calls")
+    inference_errors      = Counter("inference_errors_total",        "Total failed inference calls")
+    inference_latency     = Histogram("inference_latency_seconds",   "End-to-end inference latency",
+                                      buckets=[.001, .005, .01, .025, .05, .1, .25, .5, 1.0])
+    # --- Model quality metrics ---
+    model_confidence_high = Gauge("model_confidence_high_value",     "Last prediction confidence for High Value class")
+    model_confidence_low  = Gauge("model_confidence_low_value",      "Last prediction confidence for Low Value class")
+    # --- GC Metrics (dibaca dari modul gc Python, di-push via Pushgateway) ---
+    # Menggunakan Gauge berlabel 'generation' (0, 1, 2) — meniru format asli prometheus_client
+    gc_objects_collected   = Gauge("python_gc_objects_collected_total",
+                                   "Total objects collected by Python GC per generation",
+                                   ["generation"])
+    gc_objects_uncollect   = Gauge("python_gc_objects_uncollectable_total",
+                                   "Total uncollectable objects found by Python GC per generation",
+                                   ["generation"])
+    gc_collections         = Gauge("python_gc_collections_total",
+                                   "Total number of GC collection runs per generation",
+                                   ["generation"])
+    return (
+        prediction_total, high_value_total, low_value_total,
+        prediction_latency, last_latency, model_accuracy, app_requests,
+        inference_total, inference_errors, inference_latency,
+        model_confidence_high, model_confidence_low,
+        gc_objects_collected, gc_objects_uncollect, gc_collections
+    )
 
-PREDICTION_TOTAL, HIGH_VALUE_TOTAL, LOW_VALUE_TOTAL, PREDICTION_LATENCY, LAST_LATENCY, MODEL_ACCURACY, APP_REQUESTS = create_metrics()
+(
+    PREDICTION_TOTAL, HIGH_VALUE_TOTAL, LOW_VALUE_TOTAL,
+    PREDICTION_LATENCY, LAST_LATENCY, MODEL_ACCURACY, APP_REQUESTS,
+    INFERENCE_TOTAL, INFERENCE_ERRORS, INFERENCE_LATENCY,
+    MODEL_CONFIDENCE_HIGH, MODEL_CONFIDENCE_LOW,
+    GC_OBJECTS_COLLECTED, GC_OBJECTS_UNCOLLECT, GC_COLLECTIONS
+) = create_metrics()
+
+# ─────────────────────────────────────────────
+# Start Prometheus HTTP Server (Pull Mode — port 8000)
+# Dilindungi session_state agar tidak restart setiap Streamlit hot-reload
+# ─────────────────────────────────────────────
+if not st.session_state.get("prometheus_server_started", False):
+    try:
+        start_http_server(8000)
+        st.session_state["prometheus_server_started"] = True
+    except OSError:
+        # Port sudah dipakai — server sudah jalan dari sesi sebelumnya
+        st.session_state["prometheus_server_started"] = True
 
 # Konfigurasi URL Pushgateway (Ngrok) untuk Mendorong (Push) Metrik ke Lokal
 # PENTING: Ganti URL ini dengan URL Ngrok Anda setiap kali Ngrok direstart! (Tanpa https://)
 NGROK_PUSHGATEWAY_URL = " https://craziness-donut-trickster.ngrok-free.dev" 
 
+def update_gc_metrics():
+    """Baca statistik GC Python secara real-time lalu update Gauge metrics.
+    gc.get_stats() mengembalikan list 3 dict (untuk generasi 0, 1, 2):
+      [{'collections': N, 'collected': N, 'uncollectable': N}, ...]
+    """
+    stats = python_gc.get_stats()  # Snapshot GC saat ini
+    for gen, stat in enumerate(stats):
+        GC_OBJECTS_COLLECTED.labels(generation=str(gen)).set(stat["collected"])
+        GC_OBJECTS_UNCOLLECT.labels(generation=str(gen)).set(stat["uncollectable"])
+        GC_COLLECTIONS.labels(generation=str(gen)).set(stat["collections"])
+
 def push_metrics_to_local():
+    """Update GC metrics dari Python runtime, lalu push semua metrics ke Pushgateway."""
+    update_gc_metrics()  # Snapshot GC terbaru sebelum push
     try:
         push_to_gateway(NGROK_PUSHGATEWAY_URL, job="sales-model-streamlit-cloud", registry=REGISTRY)
-    except Exception as e:
-        pass # Abaikan error jika Ngrok mati agar app tidak crash
+    except Exception:
+        pass  # Abaikan error jika Ngrok mati agar app tidak crash
 
 # ─────────────────────────────────────────────
 # Load Model & Accuracy
@@ -137,7 +196,11 @@ with tab1:
             # Update Prometheus metrics
             PREDICTION_TOTAL.inc()
             PREDICTION_LATENCY.observe(latency)
-            LAST_LATENCY.set(latency) # Simpan kecepatan terakhir
+            LAST_LATENCY.set(latency)  # Simpan kecepatan terakhir
+            INFERENCE_TOTAL.inc()
+            INFERENCE_LATENCY.observe(latency)
+            MODEL_CONFIDENCE_HIGH.set(float(probability[1]))
+            MODEL_CONFIDENCE_LOW.set(float(probability[0]))
             if prediction == 1:
                 HIGH_VALUE_TOTAL.inc()
             else:
@@ -225,12 +288,73 @@ with tab3:
 
     st.subheader("Prometheus Metrics Endpoint")
     st.info(f"Metrik di-*push* secara aktif ke: `{NGROK_PUSHGATEWAY_URL}`")
+    st.info("""
+    ✅ GC metrics (`python_gc_objects_collected_total`, `python_gc_collections_total`)
+    sekarang di-push via Pushgateway — tersedia di Prometheus meskipun app berjalan di Streamlit Cloud.
+    Nilai GC dibaca langsung dari runtime Python (`gc.get_stats()`) setiap kali tombol Prediksi ditekan.
+    """)
+
+    st.subheader("📋 Daftar Query Prometheus (PromQL)")
     st.code("""
-# Metrics yang di-expose:
-prediction_total            — total prediksi
-prediction_high_value_total — total prediksi High Value
-prediction_low_value_total  — total prediksi Low Value
-prediction_latency_seconds  — histogram latency prediksi
-model_accuracy              — akurasi model aktif
-app_requests_total          — total request ke dashboard
+# ── GC (Garbage Collector) Metrics ────────────────────────
+# Total objek Python yang berhasil di-GC (per generasi)
+python_gc_objects_collected_total
+
+# Total objek yang TIDAK BISA di-GC (memory leak indicator)
+python_gc_objects_uncollectable_total
+
+# Jumlah GC collection yang terjadi per generasi
+python_gc_collections_total
+
+# ── Inference Metrics ─────────────────────────────────────
+# Total prediksi yang sudah dibuat
+prediction_total
+
+# Total inference API calls
+inference_requests_total
+
+# Latency prediksi (histogram — rata-rata)
+rate(inference_latency_seconds_sum[5m]) / rate(inference_latency_seconds_count[5m])
+
+# Latency prediksi terakhir (gauge)
+prediction_last_latency_seconds
+
+# Persentil 95 latency (5 menit terakhir)
+histogram_quantile(0.95, rate(prediction_latency_seconds_bucket[5m]))
+
+# ── Target / Prediction Distribution ──────────────────────
+# Total prediksi High Value
+prediction_high_value_total
+
+# Total prediksi Low Value
+prediction_low_value_total
+
+# Confidence terakhir untuk High Value
+model_confidence_high_value
+
+# Confidence terakhir untuk Low Value
+model_confidence_low_value
+
+# ── Model & App Metrics ───────────────────────────────────
+# Akurasi model yang sedang aktif
+model_accuracy
+
+# Total request ke dashboard Streamlit
+app_requests_total
+
+# ── Process Metrics (otomatis dari Python) ─────────────────
+# Memory RSS yang digunakan proses (bytes)
+process_resident_memory_bytes
+
+# CPU seconds yang digunakan
+process_cpu_seconds_total
+    """, language="promql")
+
+    st.subheader("🎯 Cara Membuka Prometheus GUI")
+    st.markdown("""
+    1. Jalankan `prometheus.exe --config.file=prometheus.yml` di folder Prometheus lokal
+    2. Buka browser → **`http://localhost:9090`**
+    3. Di kolom **Expression**, ketik salah satu query di atas lalu klik **Execute**
+    4. Pilih tab **Graph** untuk melihat grafik waktu, atau **Table** untuk nilai sekarang
+    5. Buka **`http://localhost:9090/targets`** untuk melihat status scrape endpoint
     """)

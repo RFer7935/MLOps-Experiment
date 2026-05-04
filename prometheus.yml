@@ -5,7 +5,6 @@ global:
 
 # ─────────────────────────────────────────────────────────────
 # SCRAPE CONFIGS
-# Salin file ini sebagai prometheus.yml, lalu sesuaikan target
 # ─────────────────────────────────────────────────────────────
 scrape_configs:
 

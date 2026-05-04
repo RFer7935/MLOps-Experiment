@@ -69,6 +69,8 @@ Kode Python `app.py` Anda telah dikurasi untuk melakukan *push*. Setiap kali And
    ```
    *Biarkan CMD ini terus berjalan berkedip-kedip di background Anda.*
 
+5. Buka browser dan akses **`http://localhost:9090`** untuk membuka **Prometheus GUI**.
+
 ---
 
 ## 5. Setup & Tautkan Grafana (Lokal Windows)
@@ -118,3 +120,58 @@ Jika grafik masih statis atau kosong, ubah pengaturannya mengikuti pola *Prometh
 
 ## MLOps Dashboard Ready!
 Setiap kali tombol *Prediksi* ditekan di website Streamlit Anda yang *online*, sebuah sinyal metrik akan langsung terlempar melewati "terowongan udara" Ngrok ➔ Pushgateway ➔ Ditarik oleh Prometheus ➔ Dimunculkan grafiknya di Grafana Lokal milik Anda!
+
+---
+
+## 7. Query Prometheus GUI — Daftar Lengkap PromQL
+
+Buka **`http://localhost:9090`**, lalu ketik query di bawah di kolom **Expression** dan klik **Execute**.
+
+### 🧹 GC (Garbage Collector) Metrics
+
+| Query PromQL | Deskripsi | Tipe Panel Grafana |
+|---|---|---|
+| `python_gc_objects_collected_total` | Total objek Python yang berhasil di-GC per generasi | Time series |
+| `python_gc_objects_uncollectable_total` | Total objek yang **tidak bisa** di-GC (indikator memory leak) | Stat / Time series |
+| `python_gc_collections_total` | Jumlah event GC collection per generasi | Time series |
+| `rate(python_gc_objects_collected_total[5m])` | Laju GC per detik (5 menit terakhir) | Time series |
+
+### ⚡ Inference Metrics
+
+| Query PromQL | Deskripsi | Tipe Panel Grafana |
+|---|---|---|
+| `prediction_total` | Total prediksi yang sudah dibuat | Stat |
+| `inference_requests_total` | Total inference API calls | Stat |
+| `prediction_last_latency_seconds` | Latency prediksi terakhir | Gauge |
+| `rate(inference_latency_seconds_sum[5m]) / rate(inference_latency_seconds_count[5m])` | Rata-rata latency inference (5 menit) | Time series |
+| `histogram_quantile(0.95, rate(prediction_latency_seconds_bucket[5m]))` | Persentil 95 latency | Time series |
+| `inference_errors_total` | Total gagal inference | Stat |
+
+### 🎯 Target / Prediction Distribution
+
+| Query PromQL | Deskripsi | Tipe Panel Grafana |
+|---|---|---|
+| `prediction_high_value_total` | Total prediksi High Value | Stat / Pie chart |
+| `prediction_low_value_total` | Total prediksi Low Value | Stat / Pie chart |
+| `model_confidence_high_value` | Confidence terakhir kelas High Value | Gauge |
+| `model_confidence_low_value` | Confidence terakhir kelas Low Value | Gauge |
+
+### 📊 Model & App Metrics
+
+| Query PromQL | Deskripsi | Tipe Panel Grafana |
+|---|---|---|
+| `model_accuracy` | Akurasi model aktif (0.0 – 1.0) | Gauge |
+| `app_requests_total` | Total page load dashboard Streamlit | Stat |
+| `process_resident_memory_bytes` | Memory RAM yang digunakan (bytes) | Time series |
+| `process_cpu_seconds_total` | Total CPU seconds yang dikonsumsi | Time series |
+
+---
+
+### 📍 Cara Navigasi Prometheus GUI
+
+1. **`http://localhost:9090/graph`** — Query builder & grafik real-time  
+2. **`http://localhost:9090/targets`** — Status semua target scrape (pastikan `pushgateway-lokal` **State: UP**)  
+3. **`http://localhost:9090/metrics`** — Raw metrics Prometheus itu sendiri  
+4. **`http://localhost:9091/metrics`** — Raw metrics di Pushgateway (semua job yang sudah push)
+
+> **Tip:** Di halaman `/graph`, setelah klik **Execute**, pilih tab **Graph** (bukan Table) untuk melihat grafik waktu nyata. Atur rentang waktu di pojok kanan atas (contoh: `Last 1h`).
