@@ -51,7 +51,8 @@ Kode Python `app.py` Anda telah dikurasi untuk melakukan *push*. Setiap kali And
 
 ## 4. Setup Prometheus (Lokal Windows)
 1. Unduh **Prometheus Native** `windows-amd64.zip` dari halaman unduhan yang sama, ekstrak folder.
-2. Buka dan ganti isi `prometheus.yml` untuk memantau Pushgateway:
+2. Buka dan ganti isi `prometheus.yml` dengan file yang ada di repository ini untuk memantau Pushgateway:
+   Contoh :
    ```yaml
    global:
      scrape_interval: 15s
@@ -62,11 +63,7 @@ Kode Python `app.py` Anda telah dikurasi untuk melakukan *push*. Setiap kali And
          - targets: ["localhost:9091"]
    ```
 3. Buka folder ekstrakan **Prometheus** tersebut (yang menyimpan `prometheus.exe` dan `prometheus.yml`).
-4. Klik area baris alamat atau *address bar* Windows Explorer di paling atas, ketik **`cmd`**, lalu **Enter**.
-5. CMD baru akan terbuka di layar Anda. Ketikkan baris perintah berikut sambil teliti huruf kapitalnya:
-   ```cmd
-   prometheus.exe --config.file=prometheus.yml
-   ```
+4. Klik file `prometheus.exe` untuk menjalankan dashboard prometheus lokal.
    *Biarkan CMD ini terus berjalan berkedip-kedip di background Anda.*
 
 5. Buka browser dan akses **`http://localhost:9090`** untuk membuka **Prometheus GUI**.
@@ -79,7 +76,7 @@ Kode Python `app.py` Anda telah dikurasi untuk melakukan *push*. Setiap kali And
 3. Sama seperti program yang lain di layar ini, klik daerah *address bar* Explorer kosong di sebelah nama folder Anda (paling atas putih). Ketikkan `cmd`, lalu Enter.
 4. Jendela Command Prompt baru akan muncul (ingat, Terminal ini harus digarisbawahi jalurnya **berakhir pada ...\bin**). Ketik:
    ```cmd
-   grafana-server.exe
+   grafana server
    ```
 5. Tunggu tulisan log bermunculan yang mencerminkan Grafana server `started!`.
 6. Bukalah Tab Browser baru (Chrome / Edge / Firefox) dan jalankan URL Default: **`http://localhost:3000`**
