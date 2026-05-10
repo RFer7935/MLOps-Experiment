@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY Monitoring_dan_Logging/app.py ./app.py
 COPY Membangun_model/data_penjualan_preprocessed ./Membangun_model/data_penjualan_preprocessed
 COPY Workflow-CI/MLProject/outputs ./Workflow-CI/MLProject/outputs
-COPY data/data_penjualan.csv ./data/data_penjualan.csv
+COPY dataset/data_penjualan.csv ./dataset/data_penjualan.csv
 
 # Expose Streamlit port and Prometheus metrics port
 EXPOSE 8501
